@@ -1,0 +1,74 @@
+name: Deploy AnimeDB
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-animedb-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy backend
+    runs-on: self-hosted
+
+    steps:
+      - name: Update code and build backend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd /opt/anime-platform
+
+          # No desplegar si hay cambios locales sin guardar.
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "ERROR: Hay cambios locales en /opt/anime-platform."
+            echo "Guárdalos o resuélvelos antes de desplegar."
+            exit 1
+          fi
+
+          # Descargar y actualizar exclusivamente main.
+          git fetch origin main
+          git checkout main
+          git merge --ff-only origin/main
+
+          # Compilar el backend.
+          cd /opt/anime-platform/anime-platform
+          ./mvnw clean package -DskipTests
+
+          test -f target/anime-platform-0.0.1-SNAPSHOT.jar
+
+      - name: Restart backend container
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd /opt/anime-platform
+
+          docker compose up -d --no-deps backend
+
+      - name: Verify backend
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for i in $(seq 1 30); do
+            if curl --fail --silent \
+              http://localhost:8080/v3/api-docs \
+              >/dev/null; then
+              echo "AnimeDB backend is responding correctly."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "ERROR: El backend no responde."
+          docker logs --tail 100 anime-backend
+          exit 1
+

@@ -1,0 +1,64 @@
+services:
+postgres:
+image: postgres:17
+container_name: anime-postgres
+restart: unless-stopped
+environment:
+POSTGRES_DB: anime_db
+POSTGRES_USER: anime_user
+POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en .env}
+ports:
+- "5432:5432"
+volumes:
+- /srv/anime-platform/postgres:/var/lib/postgresql/data
+networks:
+- anime-network
+healthcheck:
+test: ["CMD-SHELL", "pg_isready -U anime_user -d anime_db"]
+interval: 10s
+timeout: 5s
+retries: 5
+
+pgadmin:
+image: dpage/pgadmin4
+container_name: anime-pgadmin
+restart: unless-stopped
+environment:
+PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:?Falta PGADMIN_EMAIL en .env}
+PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Falta PGADMIN_PASSWORD en .env}
+ports:
+- "${SERVER_LAN_IP}:5050:80"
+volumes:
+- /srv/anime-platform/pgadmin:/var/lib/pgadmin
+networks:
+- anime-network
+depends_on:
+postgres:
+condition: service_healthy
+
+backend:
+image: eclipse-temurin:21-jre
+container_name: anime-backend
+restart: unless-stopped
+working_dir: /app
+command: ["java", "-jar", "/app/anime-platform.jar"]
+environment:
+DB_URL: jdbc:postgresql://postgres:5432/anime_db
+DB_USERNAME: anime_user
+DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en .env}
+MEDIA_ROOT: /srv/anime-platform/media
+ports:
+- "8080:8080"
+volumes:
+- ./anime-platform/target/anime-platform-0.0.1-SNAPSHOT.jar:/app/anime-platform.jar
+- /srv/anime-platform/media:/srv/anime-platform/media
+networks:
+- anime-network
+depends_on:
+postgres:
+condition: service_healthy
+
+networks:
+anime-network:
+name: anime-network
+driver: bridge
