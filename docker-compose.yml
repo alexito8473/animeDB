@@ -18,7 +18,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: anime-pgadmin
@@ -30,6 +30,28 @@ services:
       - "${SERVER_LAN_IP}:5050:80"
     volumes:
       - /srv/anime-platform/pgadmin:/var/lib/pgadmin
+    networks:
+      - anime-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    image: eclipse-temurin:21-jre
+    container_name: anime-backend
+    restart: unless-stopped
+    working_dir: /app
+    command: ["java", "-jar", "/app/anime-platform.jar"]
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/anime_db
+      DB_USERNAME: anime_user
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en .env}
+      MEDIA_ROOT: /srv/anime-platform/media
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./anime-platform/target/anime-platform-0.0.1-SNAPSHOT.jar:/app/anime-platform.jar:ro
+      - /srv/anime-platform/media:/srv/anime-platform/media
     networks:
       - anime-network
     depends_on:
