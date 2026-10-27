@@ -5,9 +5,8 @@ import com.animeplatform.anime_platform.dtos.MediaDetailDto;
 import com.animeplatform.anime_platform.dtos.MediaRequestDto;
 import com.animeplatform.anime_platform.dtos.MediaSummaryDto;
 import com.animeplatform.anime_platform.models.enums.MediaType;
-import com.animeplatform.anime_platform.services.MediaService;
+import com.animeplatform.anime_platform.services.mediaService.MediaService;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;

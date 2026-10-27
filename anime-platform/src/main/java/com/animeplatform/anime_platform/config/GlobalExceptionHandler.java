@@ -1,6 +1,7 @@
 package com.animeplatform.anime_platform.config;
 
 import com.animeplatform.anime_platform.config.exceptions.ApiError;
+import com.animeplatform.anime_platform.config.exceptions.BadRequestException;
 import com.animeplatform.anime_platform.config.exceptions.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -25,6 +26,15 @@ import java.util.Objects;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex, HttpServletRequest request) {
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                request,
+                null
+        );
+    }
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         return buildError(

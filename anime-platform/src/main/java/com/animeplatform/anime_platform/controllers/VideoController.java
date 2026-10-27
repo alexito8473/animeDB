@@ -1,6 +1,6 @@
 package com.animeplatform.anime_platform.controllers;
 
-import com.animeplatform.anime_platform.services.VideoStreamingService;
+import com.animeplatform.anime_platform.services.videoStreamingService.VideoStreamingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;

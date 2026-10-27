@@ -1,13 +1,14 @@
-package com.animeplatform.anime_platform.services;
+package com.animeplatform.anime_platform.services.seasonService;
 
-
+import com.animeplatform.anime_platform.config.exceptions.BadRequestException;
 import com.animeplatform.anime_platform.dtos.SeasonRequestDto;
 import com.animeplatform.anime_platform.dtos.SeasonResponseDto;
 import com.animeplatform.anime_platform.models.MediaModel;
 import com.animeplatform.anime_platform.models.SeasonModel;
 import com.animeplatform.anime_platform.repositories.MediaRepository;
 import com.animeplatform.anime_platform.repositories.SeasonRepository;
-import lombok.RequiredArgsConstructor;
+import com.animeplatform.anime_platform.utils.CheckAndThrows;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,59 +17,63 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
-@Transactional
-public class SeasonService {
+@Transactional(readOnly = true)
+public class SeasonServiceImpl implements SeasonService {
 
-    private final SeasonRepository seasons;
-    private final MediaRepository mediaRepository;
+    @Autowired
+    private SeasonRepository seasons;
 
-    @Transactional(readOnly = true)
+    @Autowired
+    private MediaRepository mediaRepository;
+
+    @Override
     public List<SeasonResponseDto> listByMedia(Long mediaId) {
         if (!mediaRepository.existsById(mediaId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No existe ese contenido");
+            throw new BadRequestException("No existe ese contenido");
         }
         return seasons.findByMedia_IdOrderBySeasonNumberAsc(mediaId)
                 .stream().map(SeasonResponseDto::from).toList();
     }
 
-    @Transactional(readOnly = true)
+    @Override
     public SeasonResponseDto get(Long id) {
         return SeasonResponseDto.from(find(id));
     }
 
+    @Transactional
+    @Override
     public SeasonResponseDto create(SeasonRequestDto dto) {
         SeasonModel s = new SeasonModel();
         apply(s, dto);
         return SeasonResponseDto.from(seasons.save(s));
     }
 
+    @Transactional
+    @Override
     public SeasonResponseDto update(Long id, SeasonRequestDto dto) {
         SeasonModel s = find(id);
         apply(s, dto);
         return SeasonResponseDto.from(seasons.save(s));
     }
 
+    @Transactional
+    @Override
     public void delete(Long id) {
         SeasonModel s = find(id);
-        if (!s.getMedia().getId().equals(
-                s.getMedia().getId())) {
+        if (!s.getMedia().getId().equals(s.getMedia().getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
         seasons.delete(s);
     }
 
     private SeasonModel find(Long id) {
-        return seasons.findById(id).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Temporada no encontrada"));
+        return CheckAndThrows.checkOptionalIfNullResourceNotFoundException(seasons.findById(id), "Temporada no encontrada");
     }
 
     private void apply(SeasonModel s, SeasonRequestDto dto) {
-        MediaModel media = mediaRepository.findById(dto.mediaId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Anime o película no encontrado"));
+        MediaModel media = CheckAndThrows.checkOptionalIfNullResourceNotFoundException(
+                mediaRepository.findById(dto.mediaId()),
+                "Anime o película no encontrado");
 
         s.setMedia(media);
         s.setSeasonNumber(dto.seasonNumber());

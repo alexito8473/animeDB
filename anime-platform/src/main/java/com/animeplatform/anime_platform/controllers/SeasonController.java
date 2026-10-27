@@ -2,9 +2,10 @@ package com.animeplatform.anime_platform.controllers;
 
 import com.animeplatform.anime_platform.dtos.SeasonRequestDto;
 import com.animeplatform.anime_platform.dtos.SeasonResponseDto;
-import com.animeplatform.anime_platform.services.SeasonService;
+import com.animeplatform.anime_platform.services.seasonService.SeasonService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,10 +13,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@RequiredArgsConstructor
 public class SeasonController {
 
-    private final SeasonService service;
+    @Autowired
+    private SeasonService service;
 
     @GetMapping("/media/{mediaId}/seasons")
     public List<SeasonResponseDto> list(@PathVariable Long mediaId) {

@@ -1,13 +1,15 @@
-package com.animeplatform.anime_platform.services;
+package com.animeplatform.anime_platform.services.videoStreamingService;
 
+import com.animeplatform.anime_platform.config.exceptions.ResourceNotFoundException;
 import com.animeplatform.anime_platform.models.EpisodeModel;
 import com.animeplatform.anime_platform.models.MediaFileModel;
 import com.animeplatform.anime_platform.models.MediaModel;
 import com.animeplatform.anime_platform.repositories.EpisodeRepository;
 import com.animeplatform.anime_platform.repositories.MediaFileRepository;
 import com.animeplatform.anime_platform.repositories.MediaRepository;
+import com.animeplatform.anime_platform.utils.CheckAndThrows;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -27,50 +29,42 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
-public class VideoStreamingService {
-
-    private final MediaFileRepository files;
-    private final MediaRepository mediaRepository;
-    private final EpisodeRepository episodeRepository;
-
-    @Value("${app.media-storage-root}")
-    private String storageRoot;
+public class VideoStreamingServiceImpl implements VideoStreamingService {
 
     private static final Pattern RANGE_PATTERN =
             Pattern.compile("^bytes=(\\d*)-(\\d*)$");
 
-    @Transactional(Transactional.TxType.SUPPORTS)
-    public ResponseEntity<InputStreamResource> streamBySlug(
-            String slug, String rangeHeader) {
+    @Autowired
+    private MediaFileRepository files;
+    @Autowired
+    private MediaRepository mediaRepository;
+    @Autowired
+    private EpisodeRepository episodeRepository;
+    @Value("${app.media-storage-root}")
+    private String storageRoot;
 
-        Optional<MediaModel> mediaOptional =
-                mediaRepository.findBySlug(slug);
+    @Transactional(Transactional.TxType.SUPPORTS)
+    @Override
+    public ResponseEntity<InputStreamResource> streamBySlug(String slug, String rangeHeader) {
+
+        Optional<MediaModel> mediaOptional = mediaRepository.findBySlug(slug);
 
         if (mediaOptional.isPresent()) {
             MediaModel media = mediaOptional.get();
-
-            MediaFileModel file = files
-                    .findFirstByMedia_IdAndFileTypeOrderByIdDesc(
-                            media.getId(), "ORIGINAL")
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "No hay vídeo disponible para: " + slug));
+            MediaFileModel file = CheckAndThrows.checkOptionalIfNullResourceNotFoundException(
+                    files.findFirstByMedia_IdAndFileTypeOrderByIdDesc(media.getId(), "ORIGINAL"),
+                    "No hay vídeo disponible para: " + slug);
 
             return streamFile(file, rangeHeader);
         }
 
-        EpisodeModel episode = episodeRepository.findBySlug(slug)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "No se encontró contenido con slug: " + slug));
+        EpisodeModel episode = CheckAndThrows.checkOptionalIfNullResourceNotFoundException(
+                episodeRepository.findBySlug(slug),
+                "No se encontró contenido con slug: " + slug);
 
-        MediaFileModel file = files
-                .findFirstByEpisode_IdAndFileTypeOrderByIdDesc(
-                        episode.getId(), "ORIGINAL")
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "No hay vídeo disponible para el episodio: " + slug));
+        MediaFileModel file = CheckAndThrows.checkOptionalIfNullResourceNotFoundException(
+                files.findFirstByEpisode_IdAndFileTypeOrderByIdDesc(episode.getId(), "ORIGINAL"),
+                "No hay vídeo disponible para el episodio: " + slug);
 
         return streamFile(file, rangeHeader);
     }
@@ -102,15 +96,13 @@ public class VideoStreamingService {
 
 
             if (!Files.exists(videoPath)) {
-                throw new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
+                throw new ResourceNotFoundException(
                         "El archivo no existe en esta ruta: " + videoPath
                 );
             }
 
             if (!Files.isRegularFile(videoPath)) {
-                throw new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
+                throw new ResourceNotFoundException(
                         "La ruta no es un archivo normal: " + videoPath
                 );
             }
